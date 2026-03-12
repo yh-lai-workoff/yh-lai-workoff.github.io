@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Local × Maps</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="style.css" />
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Local <span>/ sheets × maps</span>
+  </div>
+</header>
+
+<main>
+<div id="map"></div>
+
+<script>
+  const CONFIG = {
+    mapsApiKey: '', // For DEV ONLY
+    csvUrl: 'csv/markers.csv',
+    center: { lat: 1.3521, lng: 103.8198 },
+    zoom: 12,
+  };
+
+  async function getMarkers(csv) {
+    const response = await fetch(csv);
+    if (!response.ok) throw new Error(`Failed to load file: ${csv}`);
+
+    const csvText = await response.text();
+    const lines = csvText.trim().split(/\r?\n|\r/);
+    return lines.slice(1).map(line => {
+      const values = line.split(",");
+      return {
+        id: values[0],
+        lat: values[1],
+        lng: values[2]
+      };
+    });
+  }
+
+  function wkttolatlng(wkt) {
+    const match = wkt.match(/POLYGON\s*\(\(([\s\S]+?)\)\)/i);
+    if (!match) return null;
+
+    return match[1].split(",").map((pair) => {
+      const [lng, lat] = pair.trim().split(/\s+/).map(Number);
+      return { lat, lng };
+    });
+  }
+
+  function parseCSV(csvText) {
+    const lines = csvText.trim().split("\n");
+    const polygons = [];
+
+    // Skip header row
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Extract quoted WKT and remaining fields
+      const wktMatch = line.match(/^"(POLYGON[^"]+)"\s*,\s*([^,]*),?(.*)?$/i);
+      if (!wktMatch) continue;
+
+      const [, wkt, name] = wktMatch;
+      const color = name.trim().toLowerCase();
+
+      const paths = wkttolatlng(wkt);
+      if (!paths) continue;
+
+      polygons.push({ paths, color });
+    }
+
+    return polygons;
+  }
+
+  function getPolygonOptions(color, paths) {
+    const colorStyles = {
+      yellow: { strokeColor: "#FFD700", fillColor: "#FFD700" },
+      red:    { strokeColor: "#FF0000", fillColor: "#FF0000" },
+      black:  { strokeColor: "#000000", fillColor: "#333333" },
+    };
+
+    const style = colorStyles[color] || { strokeColor: "#0000FF", fillColor: "#0000FF" };
+
+    return {
+      paths,
+      strokeColor: style.strokeColor,
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      fillColor: style.fillColor,
+      fillOpacity: 0.35,
+    };
+  }
+
+  async function loadFileText(filePath) {
+    const response = await fetch(filePath);
+    if (!response.ok) throw new Error(`Failed to load file: ${filePath}`);
+
+    const csvText = await response.text();
+    return parseCSV(csvText);
+  }
+
+  async function processCSV(map, fileList) {
+    const allPolygons = [];
+
+    for (const filePath of fileList) {
+      try {
+        const polygonConfigs = await loadFileText(filePath);
+
+        for (const { paths, color } of polygonConfigs) {
+          const options = getPolygonOptions(color, paths);
+          const polygon = new google.maps.Polygon(options);
+          polygon.setMap(map);
+          allPolygons.push(polygon);
+        }
+
+        console.log(`Loaded ${polygonConfigs.length} polygons from ${filePath}`);
+      } catch (err) {
+        console.error(`Error loading ${filePath}:`, err);
+      }
+    }
+
+    console.log(`Total polygons added to map: ${allPolygons.length}`);
+    return allPolygons;
+  }
+
+  async function initMap() {
+    const locationsTest = [
+      { id: "SiteA", lat: 1.3521, lng: 103.8198 },
+      { id: "SiteB", lat: 1.3520, lng: 103.8197 },
+      { id: "SiteC", lat: 1.3519, lng: 103.8196 },
+    ];
+
+    const csvFiles = [
+      "csv/CAB.csv",
+    ];
+
+    const locations = await getMarkers(CONFIG.csvUrl);
+    console.log(locations);
+
+    const map = new google.maps.Map(document.getElementById("map"),{
+      zoom: CONFIG.zoom,
+      center: CONFIG.center,
+      mapTypeId: 'satellite',
+      mapId: 'DEMO_MAP_ID', //REQUIRED for AdvancedMarkerElement
+    });
+
+    // Polygons
+    processCSV(map, csvFiles);
+
+    // Map Markers
+    const infoWindow = new google.maps.InfoWindow();
+
+    locations.forEach((loc) =>{
+      const lat = parseFloat(loc.lat);
+      const lng = parseFloat(loc.lng);
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        position: { lat: lat, lng: lng },
+        map: map,
+        title: `${loc.id} (${lat}, ${lng})`
+      });
+
+      marker.addListener('gmp-click', () => {
+        const contentString = `
+        <div class="custom-info">
+          <strong>ID: ${loc.id}</strong><br>
+          Coords: (${lat}, ${lng})
+        </div>`;
+
+        infoWindow.setContent(contentString);
+        infoWindow.open(map, marker);
+      });
+    });
+  }
+</script>
+<!--"Official" way to load maps after the library is loaded in its entirety-->
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA3diLnxz6U2ZGeqihaL0stvUxXvlYLpDI&libraries=marker&callback=initMap">
+</script>
+</body>
