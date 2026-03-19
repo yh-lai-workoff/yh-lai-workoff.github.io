@@ -15,182 +15,177 @@
     <div class="logo-dot"></div>
     Google <span>/ sheets × maps</span>
   </div>
+  <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle Filters">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="4" width="14" height="1.5" rx="0.75" fill="currentColor"/>
+      <rect x="2" y="8.25" width="10" height="1.5" rx="0.75" fill="currentColor"/>
+      <rect x="2" y="12.5" width="6" height="1.5" rx="0.75" fill="currentColor"/>
+    </svg>
+    <span>Filters</span>
+  </button>
 </header>
 
 <main>
-<div id="map"></div>
+<div class="layout">
+  
 
-<script>
-  const CONFIG = {
-    mapsApiKey: 'AIzaSyA3diLnxz6U2ZGeqihaL0stvUxXvlYLpDI', // For DEV ONLY
-    csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQw9s9AkynJ-GfEuiIpqGCuP-SyvC4rP7lvzGdJtPdCCdrOgUd5GiWcF9SCcBl3A_76MZ39ApNr-RJk/pub?gid=0&single=true&output=csv', // For DEV ONLY
-    center: { lat: 1.3521, lng: 103.8198 },
-    zoom: 12,
-  };
+  <!-- MAP -->
+  <div id="map"></div>
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar sidebar--open">
+    <div class="sidebar-inner">
 
-  async function fetchSheetData(csvUrl) {
-    try {
-      const response = await fetch(csvUrl);
-      const csvText = await response.text();
+      <!-- TAB BAR -->
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab sidebar-tab--active" data-tab="filters">Filters</button>
+        <button class="sidebar-tab" data-tab="layers">Layers</button>
+      </div>
 
-      // Split into rows and remove any empty trailing lines
-      const rows = csvText.split('\n').filter(row => row.trim() !== '');
+      <!-- ── FILTERS PANEL ── -->
+      <div class="sidebar-panel" id="panel-filters">
 
-      // Remove headers (first row) and fetch rest of the data
-      const headers = ["id","lat","lng"];
-      const data = rows.slice(1).map(row => {
-        const values = row.split(',');
-        // Create an object for each row: { Header1: Value1, Header2: Value2 }
-        // TODO: Consider stricter data validation? Current: Optional
-        return headers.reduce((obj, header, i) => {
-          obj[header.trim()] = values[i]?.trim();
-          return obj;
-        }, {});
-      });
+        <div class="sidebar-section">
+          <div class="sidebar-label">Time Window</div>
+          <p class="sidebar-hint">Show markers active within this range</p>
+        </div>
 
-      console.log("Parsed Data:", data);
-      return data;
-    } catch (error) {
-      console.error("Error fetching sheet:", error);
-    }
-  }
+        <div class="sidebar-section">
+          <label class="field-label" for="start-datetime">
+            <span class="field-icon">▶</span> Start
+          </label>
+          <input type="datetime-local" id="start-datetime" class="dt-input" />
+        </div>
 
-  function wkttolatlng(wkt) {
-    const match = wkt.match(/POLYGON\s*\(\(([\s\S]+?)\)\)/i);
-    if (!match) return null;
+        <div class="sidebar-section">
+          <label class="field-label" for="end-datetime">
+            <span class="field-icon">■</span> End
+          </label>
+          <input type="datetime-local" id="end-datetime" class="dt-input" />
+        </div>
 
-    return match[1].split(",").map((pair) => {
-      const [lng, lat] = pair.trim().split(/\s+/).map(Number);
-      return { lat, lng };
-    });
-  }
+        <div class="sidebar-section">
+          <button id="apply-filter" class="btn-apply">Apply Filter</button>
+          <button id="clear-filter" class="btn-clear">Clear</button>
+        </div>
 
-  function parseCSV(csvText) {
-    const lines = csvText.trim().split("\n");
-    const polygons = [];
+        <div class="sidebar-section">
+          <div class="filter-status" id="filter-status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">No filter active</span>
+          </div>
+        </div>
 
-    // Skip header row
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
+        <div class="sidebar-section sidebar-section--stats">
+          <div class="stat-row">
+            <span class="stat-label">Total markers</span>
+            <span class="stat-value" id="stat-total">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Visible</span>
+            <span class="stat-value accent" id="stat-visible">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Hidden</span>
+            <span class="stat-value muted" id="stat-hidden">—</span>
+          </div>
+        </div>
 
-      // Extract quoted WKT and remaining fields
-      const wktMatch = line.match(/^"(POLYGON[^"]+)"\s*,\s*([^,]*),?(.*)?$/i);
-      if (!wktMatch) continue;
+      </div><!-- /panel-filters -->
 
-      const [, wkt, name] = wktMatch;
-      const color = name.trim().toLowerCase();
+      <!-- ── LAYERS PANEL ── -->
+      <div class="sidebar-panel sidebar-panel--hidden" id="panel-layers">
 
-      const paths = wkttolatlng(wkt);
-      if (!paths) continue;
+        <div class="sidebar-section">
+          <div class="sidebar-label">Map Layers</div>
+          <p class="sidebar-hint">Toggle polygon layers on or off</p>
+        </div>
 
-      polygons.push({ paths, color });
-    }
+        <div class="sidebar-section">
+          <label class="layer-row">
+            <span class="layer-info">
+              <span class="layer-swatch layer-swatch--1"></span>
+              <span class="layer-name">Layer 1</span>
+            </span>
+            <input type="checkbox" id="layer1-toggle" class="layer-checkbox" checked />
+            <span class="layer-switch"></span>
+          </label>
+        </div>
 
-    return polygons;
-  }
+        <div class="sidebar-section">
+          <label class="layer-row">
+            <span class="layer-info">
+              <span class="layer-swatch layer-swatch--2"></span>
+              <span class="layer-name">Layer 2</span>
+            </span>
+            <input type="checkbox" id="layer2-toggle" class="layer-checkbox" checked />
+            <span class="layer-switch"></span>
+          </label>
+        </div>
 
-  function getPolygonOptions(color, paths) {
-    const colorStyles = {
-      yellow: { strokeColor: "#FFD700", fillColor: "#FFD700" },
-      red:    { strokeColor: "#FF0000", fillColor: "#FF0000" },
-      black:  { strokeColor: "#000000", fillColor: "#333333" },
-    };
+      </div><!-- /panel-layers -->
 
-    const style = colorStyles[color] || { strokeColor: "#0000FF", fillColor: "#0000FF" };
+    </div>
+  </aside>
+  
+  <!-- Mini OLS Checker -->
+  <div id="control-panel">
+    <button id="toggle-btn" onclick="toggleMenu()">
+      <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4"    width="14" height="1.5" rx="0.75" fill="currentColor"/>
+        <rect x="2" y="8.25" width="10" height="1.5" rx="0.75" fill="currentColor"/>
+        <rect x="2" y="12.5" width="6"  height="1.5" rx="0.75" fill="currentColor"/>
+      </svg>
+      OLS Checker
+    </button>
 
-    return {
-      paths,
-      strokeColor: style.strokeColor,
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: style.fillColor,
-      fillOpacity: 0.35,
-    };
-  }
+    <div id="menu-content">
+      <div class="ols-label">Coordinates</div>
 
-  async function loadFileText(filePath) {
-    const response = await fetch(filePath);
-    if (!response.ok) throw new Error(`Failed to load file: ${filePath}`);
+      <div class="ols-field">
+        <label class="ols-field-label" for="lat-input">
+          <span class="field-icon">↕</span> Latitude
+        </label>
+        <input type="number" id="lat-input" class="dt-input" step="any" placeholder="1.000000">
+      </div>
 
-    const csvText = await response.text();
-    return parseCSV(csvText);
-  }
+      <div class="ols-field">
+        <label class="ols-field-label" for="lng-input">
+          <span class="field-icon">↔</span> Longitude
+        </label>
+        <input type="number" id="lng-input" class="dt-input" step="any" placeholder="103.000000">
+      </div>
 
-  async function processCSV(map, fileList) {
-    const allPolygons = [];
+      <div class="ols-field">
+        <label class="ols-field-label" for="height-input">
+          <span class="field-icon">▲</span> Height (m)
+        </label>
+        <input type="number" id="height-input" class="dt-input" placeholder="0">
+      </div>
 
-    for (const filePath of fileList) {
-      try {
-        const polygonConfigs = await loadFileText(filePath);
+      <button id="check-btn" class="btn-apply" onclick="handleCheck()">Check OLS</button>
 
-        for (const { paths, color } of polygonConfigs) {
-          const options = getPolygonOptions(color, paths);
-          const polygon = new google.maps.Polygon(options);
-          polygon.setMap(map);
-          allPolygons.push(polygon);
-        }
+      <div id="status-info" data-state="idle">Awaiting input</div>
+    </div>
+  </div>
+</div>
 
-        console.log(`Loaded ${polygonConfigs.length} polygons from ${filePath}`);
-      } catch (err) {
-        console.error(`Error loading ${filePath}:`, err);
-      }
-    }
-
-    console.log(`Total polygons added to map: ${allPolygons.length}`);
-    return allPolygons;
-  }
-
-  async function initMap() {
-    const locationsTest = [
-      { id: "SiteA", lat: 1.3521, lng: 103.8198 },
-      { id: "SiteB", lat: 1.3520, lng: 103.8197 },
-      { id: "SiteC", lat: 1.3519, lng: 103.8196 },
-    ];
-
-    const csvFiles = [
-      "csv/CAB.csv",
-    ];
-
-    const locations = await fetchSheetData(CONFIG.csvUrl);
-
-    const map = new google.maps.Map(document.getElementById("map"),{
-      zoom: CONFIG.zoom,
-      center: CONFIG.center,
-      mapTypeId: 'satellite',
-      mapId: 'DEMO_MAP_ID', //REQUIRED for AdvancedMarkerElement
-    });
-
-    // Polygons
-    processCSV(map, csvFiles);
-
-    // Map Markers
-    const infoWindow = new google.maps.InfoWindow();
-
-    locations.forEach((loc) =>{
-      const lat = parseFloat(loc.lat);
-      const lng = parseFloat(loc.lng);
-      const marker = new google.maps.marker.AdvancedMarkerElement({
-        position: { lat: lat, lng: lng },
-        map: map,
-        title: `${loc.id} (${lat}, ${lng})`
-      });
-
-      marker.addListener('gmp-click', () => {
-        const contentString = `
-        <div class="custom-info">
-          <strong>ID: ${loc.id}</strong><br>
-          Coords: (${lat}, ${lng})
-        </div>`;
-
-        infoWindow.setContent(contentString);
-        infoWindow.open(map, marker);
-      });
-    });
-  }
-</script>
+<script src="index.js"></script>
 <!--"Official" way to load maps after the library is loaded in its entirety-->
 <script async
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA3diLnxz6U2ZGeqihaL0stvUxXvlYLpDI&libraries=marker&callback=initMap">
+</script>
+<script>
+  // Tab switching — runs immediately (no map dependency)
+  document.querySelectorAll('.sidebar-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      // Swap active tab button
+      document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('sidebar-tab--active'));
+      tab.classList.add('sidebar-tab--active');
+      // Swap visible panel
+      document.querySelectorAll('.sidebar-panel').forEach(p => p.classList.add('sidebar-panel--hidden'));
+      document.getElementById('panel-' + target).classList.remove('sidebar-panel--hidden');
+    });
+  });
 </script>
 </body>
