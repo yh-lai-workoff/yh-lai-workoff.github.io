@@ -369,7 +369,264 @@ header {
   background: var(--accent);
 }
 
-/* ── OLS CHECKER PANEL ─────────────────────────────────────────────────────── */
+
+/* ── HEADER ACTIONS GROUP ──────────────────────────────────────────────────── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── DATA TABLE OVERLAY ────────────────────────────────────────────────────── */
+.table-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.table-overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
+.table-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.table-overlay-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-overlay-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.6px;
+}
+
+.table-overlay-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* Search input */
+.table-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 380px;
+}
+
+.table-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--muted);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.table-search-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 32px 8px 32px;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.table-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 229, 160, 0.1);
+}
+
+.table-search-input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.table-search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color var(--transition);
+}
+.table-search-clear:hover { color: var(--text); }
+
+/* Close button */
+.table-close-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition), color var(--transition);
+  flex-shrink: 0;
+}
+.table-close-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Table scroll container */
+.table-scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Table itself */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
+}
+
+.data-table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+  cursor: default;
+}
+
+.data-table th[data-col="id"],
+.data-table th[data-col="startdatetime"],
+.data-table th[data-col="enddatetime"] {
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.data-table th[data-col="id"]:hover,
+.data-table th[data-col="startdatetime"]:hover,
+.data-table th[data-col="enddatetime"]:hover {
+  color: var(--text);
+}
+
+.data-table th.sort-asc  { color: var(--accent); }
+.data-table th.sort-desc { color: var(--accent); }
+
+.th-sort::after {
+  content: '↕';
+  font-size: 9px;
+  margin-left: 4px;
+  opacity: 0.4;
+}
+.sort-asc  .th-sort::after { content: '↑'; opacity: 1; }
+.sort-desc .th-sort::after { content: '↓'; opacity: 1; }
+
+.data-table td {
+  padding: 9px 16px;
+  border-bottom: 1px solid rgba(30, 42, 56, 0.6);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.data-table tbody tr {
+  transition: background 0.1s;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(0, 229, 160, 0.04);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Navigate link (combined lat/lng column) */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  padding: 3px 7px;
+  border: 1px solid rgba(0, 229, 160, 0.3);
+  border-radius: 3px;
+  transition: background var(--transition), border-color var(--transition);
+  cursor: pointer;
+  background: none;
+  font-family: var(--mono);
+}
+
+.nav-link:hover {
+  background: rgba(0, 229, 160, 0.1);
+  border-color: var(--accent);
+}
+
+/* Loading / empty states */
+.table-loading-row td,
+.table-empty-row td {
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 32px;
+}
+
+/* No-results highlight on search */
+.table-no-results td {
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 32px;
+}
+
+/* layout must be position:relative so the overlay insets correctly */
+.layout { position: relative; }
 #control-panel {
   position: fixed;
   bottom: 24px;

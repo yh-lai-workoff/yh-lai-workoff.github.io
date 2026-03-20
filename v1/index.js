@@ -421,6 +421,150 @@ function handleCheck() {
   }
 }
 
+// ─── DATA TABLE OVERLAY ───────────────────────────────────────────────────────
+
+let _tableData    = [];   // full dataset, set once after initMap
+let _tableSort    = { col: null, dir: 1 };  // dir: 1 = asc, -1 = desc
+let _searchPending = false;
+
+/** Populate the table. Called once from initMap after markers are created. */
+function buildTable(locations) {
+  _tableData = locations;
+  renderTable();
+}
+
+/** Full render — diffing via tr visibility for performance at 100+ rows. */
+function renderTable() {
+  const tbody = document.getElementById('data-table-body');
+  const query = (document.getElementById('table-search')?.value || '').trim().toLowerCase();
+
+  // Filter
+  let rows = _tableData.filter(loc => {
+    if (!query) return true;
+    return (loc.id            || '').toLowerCase().includes(query) ||
+           (loc.startdatetime || '').toLowerCase().includes(query) ||
+           (loc.enddatetime   || '').toLowerCase().includes(query);
+  });
+
+  // Sort
+  if (_tableSort.col) {
+    const col = _tableSort.col;
+    const dir = _tableSort.dir;
+    rows = rows.slice().sort((a, b) => {
+      const av = (a[col] || '');
+      const bv = (b[col] || '');
+      return av < bv ? -dir : av > bv ? dir : 0;
+    });
+  }
+
+  // Update count badge
+  document.getElementById('table-count').textContent =
+    query
+      ? `${rows.length} / ${_tableData.length} entries`
+      : `${_tableData.length} entries`;
+
+  // Build rows (DocumentFragment — single reflow)
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr class="table-no-results"><td colspan="5">No matching entries</td></tr>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  rows.forEach(loc => {
+    const lat = parseFloat(loc.lat);
+    const lng = parseFloat(loc.lng);
+    const tr  = document.createElement('tr');
+
+    // Coords cell — navigate button
+    const coordsCell = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.className = 'nav-link';
+    btn.title = `Navigate to ${lat}, ${lng}`;
+    btn.innerHTML = `▶ ${isNaN(lat) ? '—' : lat.toFixed(5)}, ${isNaN(lng) ? '—' : lng.toFixed(5)}`;
+    btn.addEventListener('click', () => navigateToMarker(lat, lng));
+    coordsCell.appendChild(btn);
+
+    tr.innerHTML = `
+      <td>${loc.id       || '—'}</td>`;
+    tr.appendChild(coordsCell);
+    tr.insertAdjacentHTML('beforeend', `
+      <td>${loc.height         || '—'}</td>
+      <td>${loc.startdatetime  || '—'}</td>
+      <td>${loc.enddatetime    || '—'}</td>`);
+
+    frag.appendChild(tr);
+  });
+
+  tbody.innerHTML = '';
+  tbody.appendChild(frag);
+}
+
+/** Close the overlay and pan/zoom the map to the selected marker. */
+function navigateToMarker(lat, lng) {
+  if (isNaN(lat) || isNaN(lng)) return;
+  closeTableOverlay();
+  const map = window._mapInstance;
+  if (!map) return;
+  map.panTo({ lat, lng });
+  map.setZoom(16);
+}
+
+function openTableOverlay() {
+  document.getElementById('table-overlay').classList.remove('table-overlay--hidden');
+  document.getElementById('table-search').focus();
+}
+
+function closeTableOverlay() {
+  document.getElementById('table-overlay').classList.add('table-overlay--hidden');
+}
+
+// ── Table controls wiring (safe to run immediately, DOM is ready)
+document.getElementById('table-toggle').addEventListener('click', openTableOverlay);
+document.getElementById('table-close').addEventListener('click', closeTableOverlay);
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeTableOverlay();
+});
+
+// Debounced search via rAF flag — cheap, no timers
+document.getElementById('table-search').addEventListener('input', function () {
+  const clearBtn = document.getElementById('table-search-clear');
+  clearBtn.hidden = this.value === '';
+  if (_searchPending) return;
+  _searchPending = true;
+  requestAnimationFrame(() => {
+    _searchPending = false;
+    renderTable();
+  });
+});
+
+document.getElementById('table-search-clear').addEventListener('click', function () {
+  document.getElementById('table-search').value = '';
+  this.hidden = true;
+  renderTable();
+});
+
+// Column sort
+document.querySelectorAll('.data-table th[data-col]').forEach(th => {
+  const col = th.dataset.col;
+  if (!['id', 'startdatetime', 'enddatetime'].includes(col)) return;
+  th.addEventListener('click', () => {
+    if (_tableSort.col === col) {
+      _tableSort.dir *= -1;
+    } else {
+      _tableSort.col = col;
+      _tableSort.dir = 1;
+    }
+    // Update header classes
+    document.querySelectorAll('.data-table th').forEach(h => {
+      h.classList.remove('sort-asc', 'sort-desc');
+    });
+    th.classList.add(_tableSort.dir === 1 ? 'sort-asc' : 'sort-desc');
+    renderTable();
+  });
+});
+
 // ─── MAP INIT
 let thresholdA = null;
 let thresholdB = null;
@@ -503,4 +647,5 @@ async function initMap() {
   });
 
   updateStats(allMarkers.length, allMarkers.length, 0, false);
+  buildTable(locations);
 }
