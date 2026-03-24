@@ -368,8 +368,10 @@ function updateStats(total, visible, hidden, hasFilter) {
 // ─── SIDEBAR & FILTER BUTTON HANDLERS
 
 const sidebar = document.getElementById('sidebar');
-document.getElementById('sidebar-toggle').addEventListener('click', () => {
-  sidebar.classList.toggle('sidebar--open');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+sidebarToggleBtn.addEventListener('click', () => {
+  const isOpen = sidebar.classList.toggle('sidebar--open');
+  sidebarToggleBtn.classList.toggle('btn--active', isOpen);
 });
 
 document.getElementById('apply-filter').addEventListener('click', () => {
@@ -389,7 +391,10 @@ document.getElementById('clear-filter').addEventListener('click', () => {
 // ─── OLS CHECKER UI
 
 function toggleMenu() {
-  document.getElementById('control-panel').classList.toggle('collapsed');
+  const panel = document.getElementById('control-panel');
+  const btn   = document.getElementById('toggle-btn');
+  const isCollapsed = panel.classList.toggle('collapsed');
+  btn.classList.toggle('btn--active', !isCollapsed);
 }
 
 function handleCheck() {
@@ -511,15 +516,22 @@ function navigateToMarker(lat, lng) {
 
 function openTableOverlay() {
   document.getElementById('table-overlay').classList.remove('table-overlay--hidden');
+  document.getElementById('table-toggle').classList.add('btn--active');
   document.getElementById('table-search').focus();
 }
 
 function closeTableOverlay() {
   document.getElementById('table-overlay').classList.add('table-overlay--hidden');
+  document.getElementById('table-toggle').classList.remove('btn--active');
+}
+
+function toggleTableOverlay() {
+  const isOpen = !document.getElementById('table-overlay').classList.contains('table-overlay--hidden');
+  isOpen ? closeTableOverlay() : openTableOverlay();
 }
 
 // ── Table controls wiring (safe to run immediately, DOM is ready)
-document.getElementById('table-toggle').addEventListener('click', openTableOverlay);
+document.getElementById('table-toggle').addEventListener('click', toggleTableOverlay);
 document.getElementById('table-close').addEventListener('click', closeTableOverlay);
 
 // Close on Escape
@@ -564,6 +576,44 @@ document.querySelectorAll('.data-table th[data-col]').forEach(th => {
     renderTable();
   });
 });
+
+// ─── SHARED MARKER FACTORY ────────────────────────────────────────────────────
+
+/**
+ * Create a data marker on the map for a location object and register it in
+ * allMarkers.  Returns the AdvancedMarkerElement so callers can further
+ * customise it if needed.
+ *
+ * @param {google.maps.Map}  map
+ * @param {google.maps.InfoWindow} infoWindow  - shared InfoWindow instance
+ * @param {object} loc  - { id, lat, lng, height, startdatetime, enddatetime }
+ * @returns {google.maps.marker.AdvancedMarkerElement}
+ */
+function createDataMarker(map, infoWindow, loc) {
+  const lat = parseFloat(loc.lat);
+  const lng = parseFloat(loc.lng);
+
+  const marker = new google.maps.marker.AdvancedMarkerElement({
+    position: { lat, lng },
+    map,
+    title: `${loc.id} (${lat}, ${lng})`,
+  });
+
+  marker.addListener('gmp-click', () => {
+    infoWindow.setContent(`
+      <div class="custom-info">
+        <strong>ID: ${loc.id}</strong><br>
+        Coords: (${lat}, ${lng})<br>
+        Height: ${loc.height || '—'} m<br>
+        Start: ${loc.startdatetime || '—'}<br>
+        End: ${loc.enddatetime   || '—'}
+      </div>`);
+    infoWindow.open(map, marker);
+  });
+
+  allMarkers.push({ marker, loc });
+  return marker;
+}
 
 // ─── MAP INIT
 let thresholdA = null;
@@ -624,28 +674,155 @@ async function initMap() {
 
   // Map Markers
   const infoWindow = new google.maps.InfoWindow();
+  window._infoWindow = infoWindow;  // shared instance for add-marker modal
 
-  locations.forEach((loc) => {
-    const lat = parseFloat(loc.lat);
-    const lng = parseFloat(loc.lng);
-    const marker = new google.maps.marker.AdvancedMarkerElement({
-      position: { lat, lng },
-      map,
-      title: `${loc.id} (${lat}, ${lng})`,
-    });
-    marker.addListener('gmp-click', () => {
-      infoWindow.setContent(`
-        <div class="custom-info">
-          <strong>ID: ${loc.id}</strong><br>
-          Coords: (${lat}, ${lng})<br>
-          Start: ${loc.startdatetime || '—'}<br>
-          End: ${loc.enddatetime   || '—'}
-        </div>`);
-      infoWindow.open(map, marker);
-    });
-    allMarkers.push({ marker, loc });
-  });
+  locations.forEach(loc => createDataMarker(map, infoWindow, loc));
 
   updateStats(allMarkers.length, allMarkers.length, 0, false);
   buildTable(locations);
 }
+
+// ─── ADD MARKER MODAL ─────────────────────────────────────────────────────────
+
+function openAddMarkerModal(prefillLat, prefillLng) {
+  // Optionally prefill lat/lng (e.g. from the OLS Checker inputs)
+  if (prefillLat != null) document.getElementById('modal-lat').value = prefillLat;
+  if (prefillLng != null) document.getElementById('modal-lng').value = prefillLng;
+
+  clearModalErrors();
+  document.getElementById('add-marker-backdrop').classList.remove('modal-backdrop--hidden');
+  document.getElementById('add-marker-modal').classList.remove('modal--hidden');
+  document.getElementById('modal-id').focus();
+}
+
+function closeAddMarkerModal() {
+  document.getElementById('add-marker-backdrop').classList.add('modal-backdrop--hidden');
+  document.getElementById('add-marker-modal').classList.add('modal--hidden');
+  resetModalForm();
+}
+
+function resetModalForm() {
+  ['modal-id', 'modal-lat', 'modal-lng', 'modal-height', 'modal-start', 'modal-end']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  clearModalErrors();
+}
+
+function clearModalErrors() {
+  ['modal-id-error', 'modal-lat-error', 'modal-lng-error']
+    .forEach(id => { document.getElementById(id).textContent = ''; });
+  ['modal-id', 'modal-lat', 'modal-lng']
+    .forEach(id => document.getElementById(id).classList.remove('dt-input--error'));
+}
+
+function validateAndSubmitMarker() {
+  clearModalErrors();
+  let valid = true;
+
+  const idVal  = document.getElementById('modal-id').value.trim();
+  const latVal = document.getElementById('modal-lat').value.trim();
+  const lngVal = document.getElementById('modal-lng').value.trim();
+
+  if (!idVal) {
+    showFieldError('modal-id', 'modal-id-error', 'ID is required');
+    valid = false;
+  }
+
+  const lat = parseFloat(latVal);
+  if (!latVal || isNaN(lat) || lat < -90 || lat > 90) {
+    showFieldError('modal-lat', 'modal-lat-error', 'Valid latitude required (−90 to 90)');
+    valid = false;
+  }
+
+  const lng = parseFloat(lngVal);
+  if (!lngVal || isNaN(lng) || lng < -180 || lng > 180) {
+    showFieldError('modal-lng', 'modal-lng-error', 'Valid longitude required (−180 to 180)');
+    valid = false;
+  }
+
+  if (!valid) return;
+
+  const loc = {
+    id:            idVal,
+    lat:           lat.toString(),
+    lng:           lng.toString(),
+    height:        document.getElementById('modal-height').value.trim() || '',
+    startdatetime: formatDatetimeLocal(document.getElementById('modal-start').value),
+    enddatetime:   formatDatetimeLocal(document.getElementById('modal-end').value),
+  };
+
+  // Add to table data and re-render
+  _tableData.push(loc);
+  renderTable();
+  updateStats(allMarkers.length + 1, /* will be recounted after marker added */ allMarkers.length + 1, 0, false);
+
+  // Place marker on map
+  const map = window._mapInstance;
+  const infoWindow = window._infoWindow;
+  if (map && infoWindow) {
+    createDataMarker(map, infoWindow, loc);
+    // Re-run the active filter so the new marker respects it
+    const startVal = document.getElementById('start-datetime').value;
+    const endVal   = document.getElementById('end-datetime').value;
+    if (startVal || endVal) {
+      applyDatetimeFilter(startVal ? new Date(startVal) : null, endVal ? new Date(endVal) : null);
+    } else {
+      updateStats(allMarkers.length, allMarkers.length, 0, false);
+    }
+  }
+
+  closeAddMarkerModal();
+}
+
+/** Show an error message and highlight a field. */
+function showFieldError(inputId, errorId, message) {
+  document.getElementById(inputId).classList.add('dt-input--error');
+  document.getElementById(errorId).textContent = message;
+}
+
+/**
+ * Convert a datetime-local value ("2025-06-01T14:30") to a display-friendly
+ * ISO-like string, or return '' if the input is empty.
+ */
+function formatDatetimeLocal(value) {
+  if (!value) return '';
+  // datetime-local gives "YYYY-MM-DDTHH:MM" — return as-is; it's already ISO-compatible
+  return value;
+}
+
+// ── Wire up modal triggers and controls
+
+// Open from Data Table header
+document.getElementById('table-add-marker-btn').addEventListener('click', () => {
+  openAddMarkerModal();
+});
+
+// Open from OLS Checker — prefill lat/lng if already entered
+document.getElementById('ols-add-marker-btn').addEventListener('click', () => {
+  const lat = document.getElementById('lat-input').value;
+  const lng = document.getElementById('lng-input').value;
+  openAddMarkerModal(lat || null, lng || null);
+});
+
+// Close controls
+document.getElementById('modal-close-btn').addEventListener('click', closeAddMarkerModal);
+document.getElementById('modal-cancel-btn').addEventListener('click', closeAddMarkerModal);
+document.getElementById('add-marker-backdrop').addEventListener('click', closeAddMarkerModal);
+
+// Submit
+document.getElementById('modal-submit-btn').addEventListener('click', validateAndSubmitMarker);
+
+// Keyboard: Enter submits, Escape closes
+document.getElementById('add-marker-modal').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); validateAndSubmitMarker(); }
+  if (e.key === 'Escape') closeAddMarkerModal();
+});
+
+// Clear per-field error styling on input
+['modal-id', 'modal-lat', 'modal-lng'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById(id).classList.remove('dt-input--error');
+    const errId = id + '-error';
+    const errEl = document.getElementById(errId);
+    if (errEl) errEl.textContent = '';
+  });
+});

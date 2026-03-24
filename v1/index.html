@@ -39,11 +39,11 @@
 <main>
 <div class="layout">
   
-
   <!-- MAP -->
   <div id="map"></div>
+
   <!-- SIDEBAR -->
-  <aside id="sidebar" class="sidebar sidebar--open">
+  <aside id="sidebar" class="sidebar">
     <div class="sidebar-inner">
 
       <!-- TAB BAR -->
@@ -153,6 +153,14 @@
           <input type="text" id="table-search" class="table-search-input" placeholder="Search ID, start or end datetime…" autocomplete="off" />
           <button id="table-search-clear" class="table-search-clear" title="Clear search" hidden>✕</button>
         </div>
+        <!-- Add Marker button in table header -->
+        <button id="table-add-marker-btn" class="btn-add-marker" title="Add new marker">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <line x1="6.5" y1="1" x2="6.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="1" y1="6.5" x2="12" y2="6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Add Marker
+        </button>
         <button id="table-close" class="table-close-btn" title="Close table">✕</button>
       </div>
     </div>
@@ -173,8 +181,9 @@
       </table>
     </div>
   </div>
+
   <!-- Mini OLS Checker -->
-  <div id="control-panel">
+  <div id="control-panel" class="collapsed">
     <button id="toggle-btn" onclick="toggleMenu()">
       <svg width="14" height="14" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="4"    width="14" height="1.5" rx="0.75" fill="currentColor"/>
@@ -210,9 +219,85 @@
 
       <button id="check-btn" class="btn-apply" onclick="handleCheck()">Check OLS</button>
 
+      <!-- Add Marker button in OLS Checker -->
+      <button id="ols-add-marker-btn" class="btn-add-marker btn-add-marker--full">
+        <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
+          <line x1="6.5" y1="1" x2="6.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="1" y1="6.5" x2="12" y2="6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Add Marker
+      </button>
+
       <div id="status-info" data-state="idle">Awaiting input</div>
     </div>
   </div>
+
+  <!-- ── ADD MARKER MODAL ──────────────────────────────────────────────────── -->
+  <div id="add-marker-backdrop" class="modal-backdrop modal-backdrop--hidden"></div>
+  <div id="add-marker-modal" class="modal modal--hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Add Marker</span>
+      <button class="modal-close-btn" id="modal-close-btn" title="Close">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="modal-field">
+        <label class="modal-field-label" for="modal-id">
+          <span class="field-icon">#</span> ID <span class="modal-required">*</span>
+        </label>
+        <input type="text" id="modal-id" class="dt-input" placeholder="e.g. MKR-001" autocomplete="off" />
+        <span class="modal-field-error" id="modal-id-error"></span>
+      </div>
+
+      <div class="modal-row">
+        <div class="modal-field">
+          <label class="modal-field-label" for="modal-lat">
+            <span class="field-icon">↕</span> Latitude <span class="modal-required">*</span>
+          </label>
+          <input type="number" id="modal-lat" class="dt-input" step="any" placeholder="1.000000" />
+          <span class="modal-field-error" id="modal-lat-error"></span>
+        </div>
+        <div class="modal-field">
+          <label class="modal-field-label" for="modal-lng">
+            <span class="field-icon">↔</span> Longitude <span class="modal-required">*</span>
+          </label>
+          <input type="number" id="modal-lng" class="dt-input" step="any" placeholder="103.000000" />
+          <span class="modal-field-error" id="modal-lng-error"></span>
+        </div>
+      </div>
+
+      <div class="modal-field">
+        <label class="modal-field-label" for="modal-height">
+          <span class="field-icon">▲</span> Height (m)
+        </label>
+        <input type="number" id="modal-height" class="dt-input" placeholder="0" />
+      </div>
+
+      <div class="modal-row">
+        <div class="modal-field">
+          <label class="modal-field-label" for="modal-start">
+            <span class="field-icon">▶</span> Start Datetime
+          </label>
+          <input type="datetime-local" id="modal-start" class="dt-input" />
+        </div>
+        <div class="modal-field">
+          <label class="modal-field-label" for="modal-end">
+            <span class="field-icon">■</span> End Datetime
+          </label>
+          <input type="datetime-local" id="modal-end" class="dt-input" />
+        </div>
+      </div>
+
+    </div><!-- /modal-body -->
+
+    <div class="modal-footer">
+      <button id="modal-cancel-btn" class="btn-clear">Cancel</button>
+      <button id="modal-submit-btn" class="btn-apply">Add Marker</button>
+    </div>
+  </div>
+  <!-- /ADD MARKER MODAL -->
+
 </div>
 
 <script src="index.js"></script>
