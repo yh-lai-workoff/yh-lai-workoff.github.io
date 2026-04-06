@@ -1,0 +1,51 @@
+[
+  {
+    "id": "P1",
+    "slots": [
+      { "slotNum": 1, "maxCode": "C", "pcn": 55 },
+      { "slotNum": 2, "maxCode": "C", "pcn": 55 },
+      { "slotNum": 3, "maxCode": "C", "pcn": 55 },
+      { "slotNum": 4, "maxCode": "C", "pcn": 55 }
+    ]
+  },
+  {
+    "id": "P2",
+    "slots": [
+      { "slotNum": 1, "maxCode": "B", "pcn": 55 },
+      { "slotNum": 2, "maxCode": "B", "pcn": 55 },
+      { "slotNum": 3, "maxCode": "B", "pcn": 55 },
+      { "slotNum": 4, "maxCode": "D", "pcn": 75 },
+      { "slotNum": 5, "maxCode": "D", "pcn": 75 },
+      { "slotNum": 6, "maxCode": "D", "pcn": 75 }
+    ]
+  },
+  {
+    "id": "P3",
+    "slots": [
+      { "slotNum": 1, "maxCode": "A", "pcn": 55 },
+      { "slotNum": 2, "maxCode": "A", "pcn": 55 }
+    ]
+  },
+  {
+    "id": "P4",
+    "slots": [
+      { "slotNum": 1, "maxCode": "E", "pcn": 75 },
+      { "slotNum": 2, "maxCode": "E", "pcn": 75 },
+      { "slotNum": 3, "maxCode": "E", "pcn": 75 },
+      { "slotNum": 4, "maxCode": "E", "pcn": 75 },
+      { "slotNum": 5, "maxCode": "E", "pcn": 75 },
+      { "slotNum": 6, "maxCode": "F", "pcn": 75 },
+      { "slotNum": 7, "maxCode": "F", "pcn": 75 },
+      { "slotNum": 8, "maxCode": "F", "pcn": 75 }
+    ]
+  },
+  {
+    "id": "P5",
+    "slots": [
+      { "slotNum": 1, "maxCode": "C", "pcn": 55 },
+      { "slotNum": 2, "maxCode": "C", "pcn": 55 },
+      { "slotNum": 3, "maxCode": "C", "pcn": 55 },
+      { "slotNum": 4, "maxCode": "C", "pcn": 55 }
+    ]
+  }
+]

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APRON — Parking Stand Viewer</title>
+  <link rel="stylesheet" type="text/css" href="styles.css" />
+</head>
+
+<body>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">APRON <span>PARKING STAND VIEWER</span></div>
+  <div class="header-sep"></div>
+  <div id="loadStatus" class="status-pill">LOADING…</div>
+  <div class="view-toggle">
+    <button class="view-btn active" id="btnMap">▦ MAP</button>
+    <button class="view-btn" id="btnTable">≡ TABLE</button>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- MAP VIEW -->
+  <div class="view-panel" id="mapView">
+    <div class="sidebar">
+      
+      <!-- Map datetime filter -->
+      <div class="sidebar-section" id="mapFilterSection">
+        <div class="sidebar-title">VIEW AT TIME</div>
+        <div class="map-filter-row">
+          <button class="map-day-step-btn" id="mapFilterPrevDay" title="Previous day">&#8249;</button>          
+          <input class="filter-input map-filter-dt" id="mapFilterDT" type="datetime-local">
+          <button class="map-day-step-btn" id="mapFilterNextDay" title="Next day">&#8250;</button>
+        </div>
+        <div class="map-filter-actions">
+          <button class="map-filter-btn" id="mapFilterReset" title="Reset to today 08:30">⟳ TODAY 08:30</button>
+        </div>
+        <div class="map-filter-label" id="mapFilterLabel">—</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">CODE LEGEND</div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="sidebar-section"
+        style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding-bottom:0;">
+        <div class="sidebar-title">PARKING STANDS</div>
+        <div class="lot-list" id="lotList"></div>
+      </div>
+    </div>
+    <div class="map-container" id="mapContainer">
+      <canvas id="mapCanvas"></canvas>
+      <div class="map-hud">
+        <button class="hud-btn" id="zoomIn">+</button>
+        <button class="hud-btn" id="zoomOut">−</button>
+        <button class="hud-btn" id="resetView">⊙</button>
+      </div>
+      <div class="map-coords" id="mapCoords">X: — Y: —</div>
+    </div>
+  </div>
+
+  <!-- TABLE VIEW -->
+  <div class="view-panel hidden" id="tableView">
+    <div class="table-panel">
+
+      <div class="table-filters">
+        <span class="filter-label">ID</span>
+        <input class="filter-input" id="fID" placeholder="Search…" style="width:216px">
+
+        <div class="filter-sep"></div>
+        <span class="filter-label">CODE</span>
+        <div class="code-filter-btns" id="codeBtns"></div>
+
+        <div class="filter-sep"></div>
+        <span class="filter-label">ARR FROM</span>
+        <input class="filter-input" id="fArrFrom" type="datetime-local" style="width:175px">
+        <span class="filter-label">TO</span>
+        <input class="filter-input" id="fArrTo" type="datetime-local" style="width:175px">
+
+        <div class="filter-sep"></div>
+        <span class="filter-label">DEP FROM</span>
+        <input class="filter-input" id="fDepFrom" type="datetime-local" style="width:175px">
+        <span class="filter-label">TO</span>
+        <input class="filter-input" id="fDepTo" type="datetime-local" style="width:175px">
+
+        <button class="clear-btn" id="clearFilters">✕ CLEAR</button>
+      </div>
+
+      <div class="crud-toolbar" id="crudToolbar">
+        <button class="crud-btn crud-btn-create" id="btnCreate">＋ CREATE</button>
+        <button class="crud-btn crud-btn-update" id="btnUpdate" disabled>✎ UPDATE</button>
+        <button class="crud-btn crud-btn-delete" id="btnDelete" disabled>⌫ DELETE</button>
+        <span class="crud-source-tag" id="crudSourceTag">SOURCE: CSV</span>
+      </div>
+
+      <div class="conflict-bar" id="conflictBar" style="display:none">
+        <div class="conflict-dot"></div>
+        <span>CONFLICTS DETECTED —</span>
+        <span class="conflict-count" id="conflictCount">0</span>
+        <span>records affected.</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th data-col="id">ID <span class="sort-icon">▲</span></th>
+              <th data-col="code">CODE <span class="sort-icon">▲</span></th>
+              <th data-col="length">LENGTH (m) <span class="sort-icon">▲</span></th>
+              <th data-col="wingspan">WINGSPAN (m) <span class="sort-icon">▲</span></th>
+              <th data-col="acn">ACN <span class="sort-icon">▲</span></th>
+              <th data-col="arrival">ARRIVAL <span class="sort-icon">▲</span></th>
+              <th data-col="depart">DEPART <span class="sort-icon">▲</span></th>
+              <th data-col="lot">ASSIGNED LOT <span class="sort-icon">▲</span></th>
+              <th data-col="slot">SLOT <span class="sort-icon">▲</span></th>
+            </tr>
+          </thead>
+          <tbody id="tBody">
+            <tr>
+              <td colspan="9" class="no-data">LOADING…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="infobar">
+  <div class="infobar-item">STANDS: <span id="ibStands">—</span></div>
+  <div class="infobar-item">TOTAL SLOTS: <span id="ibSlots">—</span></div>
+  <div class="infobar-item">ACTIVE CFG: <span id="ibConfig">—</span></div>
+  <div class="infobar-item" id="ibZoomItem">ZOOM: <span id="ibZoom">—</span></div>
+  <div class="infobar-item" id="ibRowsItem" style="display:none">ENTRIES: <span id="ibRows">—</span></div>
+  <div class="infobar-item" id="ibConflItem" style="display:none">CONFLICTS: <span id="ibConfl" class="warn">—</span>
+  </div>
+</div>
+
+<div id="crudModal" class="modal-overlay hidden">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">NEW ASSIGNMENT</span>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <label class="modal-label">ID</label>
+        <input class="filter-input modal-input" id="mID" placeholder="e.g. SQ321">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">CODE</label>
+        <select class="filter-input modal-input" id="mCode">
+          <option value="A">A</option><option value="B">B</option>
+          <option value="C">C</option><option value="D">D</option>
+          <option value="E">E</option><option value="F">F</option>
+        </select>
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">LENGTH (m)</label>
+        <input class="filter-input modal-input" id="mLength" type="number" placeholder="e.g. 70">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">WINGSPAN (m)</label>
+        <input class="filter-input modal-input" id="mWingspan" type="number" placeholder="e.g. 64">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">ACN</label>
+        <input class="filter-input modal-input" id="mAcn" type="number" placeholder="e.g. 42" min="0">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">ARRIVAL</label>
+        <input class="filter-input modal-input" id="mArrival" type="datetime-local">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">DEPART</label>
+        <input class="filter-input modal-input" id="mDepart" type="datetime-local">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">ASSIGNED LOT</label>
+        <input class="filter-input modal-input" id="mLot" placeholder="e.g. A1">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label">ASSIGNED SLOT</label>
+        <input class="filter-input modal-input" id="mSlot" type="number" placeholder="e.g. 2" min="1">
+      </div>
+
+      <!-- Lot suggestion panel — visible in create mode once key fields are filled -->
+      <div id="lotSuggestPanel" class="lot-suggest-panel" style="display:none">
+        <div class="lot-suggest-title">AVAILABLE LOTS</div>
+        <div class="lot-suggest-scroll">
+          <table class="lot-suggest-table" id="lotSuggestTable"></table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="modal-error" id="modalError"></span>
+      <button class="modal-btn modal-btn-cancel" id="modalCancel">CANCEL</button>
+      <button class="modal-btn modal-btn-confirm" id="modalConfirm">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div id="deleteModal" class="modal-overlay hidden">
+  <div class="modal-box modal-box-sm">
+    <div class="modal-header">
+      <span class="modal-title" style="color:var(--danger)">CONFIRM DELETE</span>
+      <button class="modal-close" id="deleteModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-confirm-text">Delete assignment <strong id="deleteTargetID"></strong>? This cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" id="deleteCancelBtn">CANCEL</button>
+      <button class="modal-btn modal-btn-danger" id="deleteConfirmBtn">DELETE</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="index.js"></script>
+
+</body>
+
+</html>
